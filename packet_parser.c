@@ -27,7 +27,7 @@ static struct iphdr *ip_hdr_check(struct sk_buff *skb) {
 	if (!iph)
 		return NULL;
 
-	ip_header_len = iph->ihl * 4;     //retrieves the real size of IP header
+	ip_header_len = iph->ihl * 4;         //retrieves the real size of IP header
 
 	if (ip_header_len < sizeof(struct iphdr))
 		return NULL;

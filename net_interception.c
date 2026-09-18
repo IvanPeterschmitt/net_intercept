@@ -1,4 +1,5 @@
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/netfilter.h>
@@ -17,7 +18,7 @@ static unsigned int hook_func(void *priv, struct sk_buff *skb, const struct nf_h
 		pr_debug("[NET_INTERCEPT] Invalid skb\n");
 		return NF_ACCEPT;
 	}
-	
+
 	return parse_packet(skb);
 }
 
