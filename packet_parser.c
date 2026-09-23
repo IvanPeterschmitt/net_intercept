@@ -7,15 +7,6 @@
 #include <linux/netfilter_ipv4.h>
 
 
-static const char *get_proto_name (u8 proto) {
-        switch (proto) {
-                case IPPROTO_ICMP: return "ICMP";
-                case IPPROTO_TCP: return "TCP";
-                case IPPROTO_UDP: return "UDP";
-                default: return "OTHER";
-        }
-}
-
 static struct iphdr *ip_hdr_check(struct sk_buff *skb) {
 	struct iphdr *iph;
 	unsigned int ip_header_len;
@@ -87,16 +78,18 @@ static struct udphdr *udp_hdr_check(struct sk_buff *skb) {
 	return udph;
 }
 
-unsigned int parse_packet(struct sk_buff *skb) {
+int parse_packet(struct sk_buff *skb, struct packet_data *packet) {
 	struct iphdr *iph;
-	char sport[8] = "";
-	char dport[8] = "";
 
 	iph = ip_hdr_check(skb);
 	if (!iph) {
 		pr_debug("[NET_INTERCEPT] Failed to parse IP header\n");
-		return NF_ACCEPT;
+		return 1;
 	}
+
+	packet->src_ip = iph->saddr;
+	packet->dest_ip = iph->daddr;
+	packet->protocol = iph->protocol;
 
 	switch (iph->protocol) {
 		case IPPROTO_TCP: {
@@ -105,11 +98,11 @@ unsigned int parse_packet(struct sk_buff *skb) {
 			tcph = tcp_hdr_check(skb);
 			if (!tcph) {
 				pr_debug("[NET_INTERCEPT] Failed to parse TCP header\n");
-				return NF_ACCEPT;
+				return 1;
 			}
-			
-			snprintf(sport, sizeof(sport), ":%u", ntohs(tcph->source));
-			snprintf(dport, sizeof(dport), ":%u", ntohs(tcph->dest));
+
+			packet->src_port = tcph->source;
+			packet->dest_port = tcph->dest;
 
 			break;
 		}
@@ -120,17 +113,15 @@ unsigned int parse_packet(struct sk_buff *skb) {
 			udph = udp_hdr_check(skb);
 			if (!udph) {
 				pr_debug("[NET_INTERCEPT] Failed to parse UDP header\n");
-				return NF_ACCEPT;
+				return 1;
 			}
 
-			snprintf(sport, sizeof(sport), ":%u", ntohs(udph->source));
-			snprintf(dport, sizeof(dport), ":%u", ntohs(udph->dest));
+			packet->src_port = udph->source;
+			packet->dest_port = udph->dest;
 
 			break;
 		}
 	}
 
-	pr_info("[NET_INTERCEPT] Proto: %s (%u) | Packet: %pI4%s -> %pI4%s\n", get_proto_name(iph->protocol), iph->protocol, &iph->saddr, sport, &iph->daddr, dport);
-
-	return NF_ACCEPT;
+	return 0;
 }
