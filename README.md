@@ -232,10 +232,11 @@ Natural next steps:
 ```text
 net_intercept/
 ├── Makefile
-├── net_interception.c       # Netfilter hook and module lifecycle
-├── packet_parser.c/.h       # Network header extraction
-├── param_parser.c/.h        # Parameter validation and conversion
-├── packet_filter.c/.h       # Criteria comparison engine
+├── src
+│   ├── net_interception.c       # Netfilter hook and module lifecycle
+│   ├── packet_parser.c/.h       # Network header extraction
+│   ├── param_parser.c/.h        # Parameter validation and conversion
+│   ├── packet_filter.c/.h       # Criteria comparison engine
 ├── tests/
 │   ├── common.sh
 │   ├── test_load.sh
@@ -247,8 +248,7 @@ net_intercept/
 │   ├── test_drop.sh
 │   ├── test_filter_misses.sh
 │   └── test_parameter_boundaries.sh
-├── README.md                # Original technical documentation
-└── README2.md               # Project presentation and recruiter-facing guide
+├── README.md                # Technical documentation
 ```
 
 ## What This Project Demonstrates
