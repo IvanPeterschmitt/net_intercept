@@ -28,9 +28,13 @@ static int check_ip(char *ip_str, struct ip_mask *result) {
     __be32 res = in_aton(ip_str);
     char *orig_ptr = ip_str;
     
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         char *byte_str = strsep(&ip_str, ".");
-        if (!byte_str) {
+        if (!byte_str && i < 4) {
+            pr_err("[NET_INTERCEPT] Invalid IP address: %s\n", orig_ptr);
+            return 1;
+        }
+        if (i == 4 && byte_str) {
             pr_err("[NET_INTERCEPT] Invalid IP address: %s\n", orig_ptr);
             return 1;
         }
