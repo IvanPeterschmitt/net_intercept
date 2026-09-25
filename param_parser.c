@@ -26,16 +26,18 @@ static __u8 check_mode(char *mode_str) {
 
 static int check_ip(char *ip_str, struct ip_mask *result) {
     __be32 res = in_aton(ip_str);
+    char *orig_ptr = ip_str;
     
     for (int i = 0; i < 4; i++) {
         char *byte_str = strsep(&ip_str, ".");
         if (!byte_str) {
-            pr_err("[NET_INTERCEPT] Invalid IP address: %s\n", ip_str);
+            pr_err("[NET_INTERCEPT] Invalid IP address: %s\n", orig_ptr);
             return 1;
         }
-        int byte = kstrtoul(byte_str, 10, NULL);
-        if (!byte || byte < 0 || byte > 255) {
-            pr_err("[NET_INTERCEPT] Invalid IP address: %s\n", ip_str);
+        
+        unsigned long byte;
+        if (kstrtoul(byte_str, 10, &byte) != 0 || byte > 255) {
+            pr_err("[NET_INTERCEPT] Invalid IP address: %s\n", orig_ptr);
             return 1;
         }
     }
@@ -45,31 +47,34 @@ static int check_ip(char *ip_str, struct ip_mask *result) {
     return 0;
 }
 
-static int check_ip_mask(char *ip_str, struct ip_mask *result) {
+static int check_ip_mask(const char *ip_str, struct ip_mask *result) {
+    char ip_str_copy[32];
     
-    if (strcmp(ip_str, "") == 0) {
-        result->ip = 0;
-        result->mask = 0;
-    } else {
-        char *slash = strchr(ip_str, '/');
-        if (slash) {
-            *slash = '\0';
-            if (check_ip(ip_str, result)) {
-                return 1;
-            }
-            int prefix_len = kstrtoul(slash + 1, 10, NULL);
-            if (prefix_len < 0 || prefix_len > 32) {
-                pr_err("[NET_INTERCEPT] Invalid IP prefix length: %d\n", prefix_len);
-                return 1;   //return error for invalid prefix length
-            } else {
-                result->mask = htonl(~((1 << (32 - prefix_len)) - 1));
-            }
-        } else {
-            if (check_ip(ip_str, result)) {
-                return 1;
-            }
-            result->mask = htonl(0xFFFFFFFF); // default mask for single IP
+    if (!ip_str || !result || strscpy(ip_str_copy, ip_str, sizeof(ip_str_copy)) < 0)
+        return 1;
+
+    char *slash = strchr(ip_str_copy, '/');
+    if (slash) {
+        *slash = '\0';
+        if (check_ip(ip_str_copy, result)) {
+            return 1;
         }
+        
+        unsigned long prefix_len;
+        if (kstrtoul(slash + 1, 10, &prefix_len) != 0 || prefix_len > 32) {
+            pr_err("[NET_INTERCEPT] Invalid IP prefix length: %lu\n", prefix_len);
+            return 1;
+        }
+        if (prefix_len == 0) {
+            result->mask = 0;
+        } else {
+            result->mask = htonl(~((1U << (32 - prefix_len)) - 1));
+        }
+    } else {
+        if (check_ip(ip_str_copy, result)) {
+            return 1;
+        }
+        result->mask = htonl(0xFFFFFFFF); // default mask for single IP
     }
 
     return 0;
@@ -103,6 +108,8 @@ static __be16 check_port(int port) {
 int parse_params(struct params *params, char *mode, char *src_ip, char *dest_ip, char *protocol, int src_port, int dest_port) {
     struct ip_mask src_ip_mask, dest_ip_mask;
 
+    // interception mode parameter parsing
+
     if (!mode) {
         params->mode = 0;   //default mode is log
     } else {
@@ -113,37 +120,43 @@ int parse_params(struct params *params, char *mode, char *src_ip, char *dest_ip,
         return -EINVAL;   //return error for invalid mode
     }
 
-    if (!src_ip) {
-        src_ip = "0.0.0.0/0";   //default: target all traffic
+    // source and destination IP address parameter parsing
+
+    if (src_ip[0] == '\0') {
+        src_ip = "0.0.0.0/0";               //default: target all traffic
     }
     if (check_ip_mask(src_ip, &src_ip_mask)) {
         pr_err("[NET_INTERCEPT] Invalid source IP address: %s\n", src_ip);
-        return -EINVAL;   //return error for invalid source IP
+        return -EINVAL;                     //return error for invalid source IP
     }
     params->src_ip = src_ip_mask.ip;
     params->src_mask = src_ip_mask.mask;
 
-    if (!dest_ip) {
-        dest_ip = "0.0.0.0/0";   //default: target all traffic
+    if (dest_ip[0] == '\0') {
+        dest_ip = "0.0.0.0/0";              //default: target all traffic
     }
     if (check_ip_mask(dest_ip, &dest_ip_mask)) {
         pr_err("[NET_INTERCEPT] Invalid destination IP address: %s\n", dest_ip);
-        return -EINVAL;   //return error for invalid destination IP
+        return -EINVAL;                     //return error for invalid destination IP
     }
     params->dest_ip = dest_ip_mask.ip;
     params->dest_mask = dest_ip_mask.mask;
 
+    // protocol parameter parsing
+
     params->protocol = check_proto(protocol);
     if (params->protocol == 255) {
         pr_err("[NET_INTERCEPT] Invalid protocol: %s\n", protocol);
-        return -EINVAL;   //return error for invalid protocol
+        return -EINVAL;                     //return error for invalid protocol
     }
 
+    // source and destination port parameter parsing
+    
     if (src_port != -1) {
         params->src_port = check_port(src_port);
         if (params->src_port == 0) {
             pr_err("[NET_INTERCEPT] Invalid source port: %d\n", src_port);
-            return -EINVAL;   //return error for invalid source port
+            return -EINVAL;                  //return error for invalid source port
         }
     } else {
         params->src_port = 0;   //default: target all source ports
@@ -157,6 +170,11 @@ int parse_params(struct params *params, char *mode, char *src_ip, char *dest_ip,
         }
     } else {
         params->dest_port = 0;   //default: target all destination ports
+    }
+
+    if (params->mode == 0 && params->src_ip == 0 && params->dest_ip == 0 && params->protocol == 0 && params->src_port == 0 && params->dest_port == 0) {
+        pr_err("[NET_INTERCEPT] Invalid configuration: drop mode with no filtering criteria leads to dropping all incoming traffic.\n");
+        return -EINVAL;   //return error for invalid configuration
     }
 
     return 0;

@@ -14,27 +14,27 @@
 
 static char *mode = "";
 module_param(mode, charp, 0644);
-MODULE_PARM_DESC(mode, "Mode of operation: log(default), drop");
+MODULE_PARM_DESC(mode, " Mode of operation: log(default), drop");
 
-static char *target_ip_dest = "";
-module_param(target_ip_dest, charp, 0644);
-MODULE_PARM_DESC(target_ip_dest, "Target destination IP address range (ex: \"192.168.1.0/24\")");
+static char *ip_dest = "";
+module_param(ip_dest, charp, 0644);
+MODULE_PARM_DESC(ip_dest, " Target destination IP address range (ex: \"192.168.1.0/24\")");
 
-static char *target_ip_src = "";
-module_param(target_ip_src, charp, 0644);
-MODULE_PARM_DESC(target_ip_src, "Target source IP address range (ex: \"192.168.1.0/24\")");
+static char *ip_src = "";
+module_param(ip_src, charp, 0644);
+MODULE_PARM_DESC(ip_src, " Target source IP address range (ex: \"192.168.1.0/24\")");
 
-static char *target_proto = "";
-module_param(target_proto, charp, 0644);
-MODULE_PARM_DESC(target_proto, "Target protocol: all(default), icmp, tcp, udp");
+static char *proto = "";
+module_param(proto, charp, 0644);
+MODULE_PARM_DESC(proto, " Target protocol: all(default), icmp, tcp, udp");
 
-static int target_port_src = -1;
-module_param(target_port_src, int, 0644);
-MODULE_PARM_DESC(target_port_src, "Target source port number (1-65535)");
+static int port_src = -1;
+module_param(port_src, int, 0644);
+MODULE_PARM_DESC(port_src, " Target source port number (1-65535)");
 
-static int target_port_dest = -1;
-module_param(target_port_dest, int, 0644);
-MODULE_PARM_DESC(target_port_dest, "Target destination port number (1-65535)");
+static int port_dest = -1;
+module_param(port_dest, int, 0644);
+MODULE_PARM_DESC(port_dest, " Target destination port number (1-65535)");
 
 static struct nf_hook_ops nfho;
 static struct params params;
@@ -80,7 +80,7 @@ static unsigned int hook_func(void *priv, struct sk_buff *skb, const struct nf_h
 static int __init intercept_init(void) {
 	int ret;
 
-	ret = parse_params(&params, mode, target_ip_src, target_ip_dest, target_proto, target_port_src, target_port_dest);
+	ret = parse_params(&params, mode, ip_src, ip_dest, proto, port_src, port_dest);
 	if (ret) {
 		pr_err("[NET_INTERCEPT] Failed to parse parameters\n");
 		return ret;
