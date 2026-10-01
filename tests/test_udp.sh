@@ -26,7 +26,7 @@ sleep 1
 
 echo "[TEST] Checking kernel logs..."
 
-if check_intercept "UDP"; then
+if check_intercept "17"; then
     pass "UDP packet was intercepted"
 else
     unload_module

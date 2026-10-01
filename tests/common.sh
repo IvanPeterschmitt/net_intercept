@@ -60,7 +60,7 @@ get_intercept_logs() {
 }
 
 check_intercept() {
-    if sudo dmesg | grep -q "${LOG_TAG} Proto: $1"; then
+    if sudo dmesg | grep -q "${LOG_TAG} .* protocol=$1"; then
         return 0
     fi
 

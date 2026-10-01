@@ -21,7 +21,7 @@ sleep 1
 
 echo "[TEST] Checking kernel logs..."
 
-if check_intercept "ICMP"; then
+if check_intercept "1"; then
     pass "ICMP packet was intercepted"
 else
     unload_module

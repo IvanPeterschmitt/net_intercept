@@ -22,7 +22,7 @@ sleep 1
 
 echo "[TEST] Checking kernel logs..."
 
-if check_intercept "TCP"; then
+if check_intercept "6"; then
     pass "TCP packet was intercepted"
 else
     unload_module
